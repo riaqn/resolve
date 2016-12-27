@@ -60,6 +60,9 @@ resolve r a = do
     else do
     let b_tc = encodeMessage $ b' { header = (header b') { tc = True }
                                   , question = question b'
+                                  , answer = []
+                                  , authority = []
+                                  , additional = []
                                  }
     if (BSL.null $ BSL.drop maxLength b_tc) then
       return $ b_tc
