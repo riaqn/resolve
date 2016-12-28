@@ -39,14 +39,6 @@ instance Exception Closed where
     toException = dnsExceptionToException
     fromException = dnsExceptionFromException
 
-
-newClosed :: IO (Resolver Message Message)
-newClosed = do
-  chan <- C.newDead
-  return $ Resolver { resolve = resolve chan
-                    , delete = delete chan
-                    }
-
 new :: Config -> IO (Resolver Message Message)
 new c = do
   qi <- newEmptyTMVarIO

@@ -65,11 +65,6 @@ data Resolver = Resolver { tid :: ThreadId
                          , dead :: TVar Bool
                        }
 
-newDead :: IO (T.Resolver Message Message)
-newDead = return $ T.Resolver { T.resolve = \a -> throw Dead
-                              , T.delete = return ()
-                              }
-
 new :: Config -> IO (T.Resolver Message Message)
 new c = do
   b <- M.newIO
