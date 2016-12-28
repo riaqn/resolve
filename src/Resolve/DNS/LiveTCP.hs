@@ -48,7 +48,7 @@ new c = do
             Nothing -> return False
             Just r' -> if ((unique r) == (unique r')) then (void $ takeTMVar res) >> return True
                        else return False
-        when x $ infoM nameM $ (show c) ++ " connection closed, deleted"
+        when x $ debugM nameM $ (show c) ++ " connection closed, deleted"
 
   let loop a = do
         let nameF = nameM ++ ".resolve"
@@ -67,13 +67,13 @@ new c = do
                     loop a
                   Right b' -> return b'
               Nothing -> do
-                infoM nameF $ (show c) ++ " trying to reconnect"
+                debugM nameF $ (show c) ++ " trying to reconnect"
                 bracketOnError
                   (socket (family c) (Stream) (protocol c))
                   (\s -> close s)
                   (\s -> do 
                       connect s (server c)
-                      infoM nameF $ (show c ) ++ " reconnected"
+                      debugM nameF $ (show c ) ++ " reconnected"
                       bracketOnError 
                         (TCP.new $ TCP.Config { TCP.socket = s})
                         delete
