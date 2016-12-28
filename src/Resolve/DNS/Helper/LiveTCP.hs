@@ -10,6 +10,7 @@ import Network.Socket
 data Config = Config { host :: HostName
                      , port :: ServiceName
                      }
+              deriving (Show)
 
 lname = "Resolve.DNS.Helper.LiveTCP"              
 

@@ -9,6 +9,7 @@ import Network.Socket
 data Config = Config { host :: HostName
                      , port :: ServiceName
                      }
+              deriving (Show)
 
 new :: Config -> IO (Resolver Message Message)
 new c = do
