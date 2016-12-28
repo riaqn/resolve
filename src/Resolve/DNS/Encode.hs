@@ -11,7 +11,6 @@ import qualified Resolve.DNS.Types as T
 import Data.Monoid
 import Data.Word
 import Data.BitVector
-import qualified Data.HashMap as HM
 import Data.Maybe
 import Data.Hashable
 import Data.IP

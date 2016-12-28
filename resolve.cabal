@@ -40,12 +40,10 @@ library
                      , attoparsec-binary
                      , transformers
                      , bv
-                     , hashmap
                      , hashable
                      , network
                      , stm
                      , stm-containers
-                     , parsec
                      , hslogger
                      , iproute
   default-language:    Haskell2010

@@ -15,7 +15,6 @@ import Data.Tuple
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
 import Control.Monad
-import qualified Data.HashMap as HM
 import Data.BitVector hiding (not)
 
 import Data.IP

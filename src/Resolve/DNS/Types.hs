@@ -3,7 +3,6 @@ module Resolve.DNS.Types where
 import Data.Word
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.HashMap as HM
 import Data.Tuple (swap)
 import Data.Maybe
 import Data.Bits
