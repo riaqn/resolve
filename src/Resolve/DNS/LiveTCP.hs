@@ -6,15 +6,18 @@ import qualified Resolve.DNS.Channel as C
 import Resolve.DNS.Types
 
 import Control.Monad
+import Control.Monad.STM
 import Control.Monad.Trans.Except
-import Control.Concurrent.MVar
+import Control.Concurrent.STM.TMVar
 import Control.Concurrent
+
+import Data.Maybe
+import Data.Unique
+
 import Control.Exception
 
-import Network.Socket  hiding (Closed)
 
-import           Control.Concurrent.ReadWriteLock        ( RWLock )
-import qualified Control.Concurrent.ReadWriteLock as RWL
+import Network.Socket  hiding (Closed)
 
 import System.Log.Logger
 
@@ -25,58 +28,71 @@ data Config = Config { family :: Family
                      , server :: SockAddr                       
                      }
               deriving (Show)
+
+data Record = Record { resolver :: Resolver Message Message
+                     , unique :: Unique
+                     , sock :: Socket
+                     }
               
 new :: Config -> IO (Resolver Message Message)
 new c = do
-  r <- TCP.newClosed
-  res <- newMVar (Nothing, r) 
-  l <- RWL.new -- RW lock
+  res <- newEmptyTMVarIO
+  l <- newEmptyTMVarIO -- whoever holds the lock will reconnect
 
-  let del = do
-        r <- takeMVar res
-        delete (snd r)
-        case fst r of
-          Nothing -> return ()
-          Just s -> close s
-        
+  let del r = do
+        delete (resolver r)
+        close (sock r)
+        x <- atomically $ do
+          x <- tryReadTMVar res
+          case x of
+            Nothing -> return False
+            Just r' -> if ((unique r) == (unique r')) then (void $ takeTMVar res) >> return True
+                       else return False
+        when x $ infoM nameM $ (show c) ++ " connection closed, deleted"
+
   let loop a = do
         let nameF = nameM ++ ".resolve"
-        b <- bracket_
-          (RWL.acquireRead l)
-          (RWL.releaseRead l)
-          (do
-              r <- readMVar res
-              b <- try (resolve (snd r) a)
-              debugM nameF $ show b
-              return b
-          )
-        case b of
-          Left C.Dead -> do
-            infoM nameF $ (show c) ++ " connection closed, reconnecting"            
-            bracket 
-              (RWL.tryAcquireWrite l)
-              (\w -> when w $ RWL.releaseWrite l)
-              (\w -> when w $ do
-                  del 
-                  bracketOnError
-                    (socket (family c) (Stream) (protocol c))
-                    (\s -> do
-                        debugM nameF "definitely not expecting this!"
-                        close s)
-                    (\s -> do 
-                        connect s (server c)
-                        infoM nameF $ (show c ) ++ " reconnected"
-                        bracketOnError 
-                          (TCP.new $ TCP.Config { TCP.socket = s})
-                          delete
-                          (\r -> putMVar res (Just s, r))
-                    )
-              )
-            debugM nameF "now let's try again"
-            loop a
-          Right b' -> return b'
+        bracket
+          (atomically $ do
+              x <- tryReadTMVar res
+              when (isNothing x) $ putTMVar l ()
+              return x)
+          (\x -> atomically $ when (isNothing x) $ takeTMVar l)
+          (\x -> case x of
+              Just r -> do
+                b <- try (resolve (resolver r) a)
+                debugM nameF $ show b
+                case b of
+                  Left C.Dead -> do
+                    del r
+                    loop a
+                  Right b' -> return b'
+              Nothing -> do
+                infoM nameF $ (show c) ++ " trying to reconnect"
+                bracketOnError
+                  (socket (family c) (Stream) (protocol c))
+                  (\s -> close s)
+                  (\s -> do 
+                      connect s (server c)
+                      infoM nameF $ (show c ) ++ " reconnected"
+                      bracketOnError 
+                        (TCP.new $ TCP.Config { TCP.socket = s})
+                        delete
+                        (\r -> do
+                            u <- newUnique
+                            atomically $ do 
+                              putTMVar res $ Record { resolver = r
+                                                    , unique = u
+                                                    , sock = s}
+                        )
+                  )
+                loop a)
           
   return $ Resolver { resolve = loop
-                    , delete = del
+                    , delete = do
+                        x <- atomically $ tryReadTMVar res
+                        case x of
+                          Nothing -> return ()
+                          Just r -> del r
                     }
 
