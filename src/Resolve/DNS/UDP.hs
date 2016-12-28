@@ -38,16 +38,12 @@ new c = do
                              if BS.length a > maxLength then
                                throw QueryTooLong
                                else do
-                               debugM nameF $ "sending " ++ (show $ BS.length a) ++ "B"
                                void $ sendTo (socket c) a (server c)
-                               debugM nameF $ "sent " ++ (show $ BS.length a) ++ "B"
 
                 
                          , C.recv = let loop = do
                                           let nameF = nameM ++ ".recv"
-                                          debugM nameF $ "recving "
                                           (bs, sa) <- (recvFrom (socket c) maxLength)
-                                          debugM nameF $ "recvd " ++ (show $ BS.length bs) ++ "B"
                                           if sa /= (server c) then loop
                                             else return bs
                                     in

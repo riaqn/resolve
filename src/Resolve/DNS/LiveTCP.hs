@@ -61,7 +61,6 @@ new c = do
           (\x -> case x of
               Just r -> do
                 b <- try (resolve (resolver r) a)
-                debugM nameF $ show b
                 case b of
                   Left C.Dead -> do
                     del r

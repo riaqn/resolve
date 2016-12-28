@@ -28,8 +28,6 @@ import Control.Concurrent.STM.TMVar
 
 import Data.Typeable
 
-import qualified Control.Concurrent.ReadWriteLock as RWL
-
 import System.Log.Logger
 
 
@@ -74,16 +72,15 @@ new c = do
     (forkIOWithUnmask $ \unmask -> unmask $ finally (forever $ runExceptT $ do  -- EitherT String IO ()
         let nameF = nameM ++ ".recv"
         bs <- lift $ recv c
-        lift $ debugM nameF $ (nick c) ++ "recvd "  ++ (show $ BS.length bs) ++ "B"
         m <- ExceptT $ return $ D.decodeMessage bs
-        lift $ debugM nameF $ (nick c) ++ " -> " ++ (show m)
+        lift $ debugM nameF $ (nick c) ++ " -> recvd " ++ (show m)
         let ident' = (ident $ header $ m)
         r <- lift $ atomically $ lookupAndDelete b ident'
         case r of
           Nothing -> throwE "ID not in book"
           Just mvar -> lift $ atomically $ tryPutTMVar mvar m ) 
       (do
-          debugM nameM $ (nick c) ++ " going dead"
+          debugM nameM $ (nick c) ++ " died"
           atomically $ writeTVar si True))
     killThread
     (\t -> do 
@@ -92,6 +89,7 @@ new c = do
                             , config = c
                             , dead = si
                             }
+        debugM nameM $ (nick c) ++ " created"
         return $ T.Resolver { T.delete = delete chan
                             , T.resolve = resolve chan
                             }
@@ -108,16 +106,18 @@ resolve r a = do
     (\ident_ -> do 
         let a_ = a { header = (header a) { ident = ident_ }}
 
-        debugM nameF $ (nick $ config $ r) ++ " <- " ++ (show a_)
 
         bs <- case E.encode E.message a_ of
           Left s -> throw $ EncodeError s
           Right b -> return $ BSL.toStrict b
 
 
-        forkIO $ do
-          debugM nameF $ (nick $ config r) ++ "trying to send " ++ show bs
-          catch ((send $ config $ r) bs) (\e -> debugM nameF $ show (e :: SomeException))
+        forkIO $ catch
+          (do
+              debugM nameF $ (nick $ config $ r) ++ " <- sending " ++ (show a_)
+              (send $ config $ r) bs
+              debugM nameF $ (nick $ config $ r) ++ " <- sent ")
+          (\e -> debugM nameF $ "exception when sending: " ++ show (e :: SomeException))
             
         x <- atomically $ do
           a <- readTVar $ dead r

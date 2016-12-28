@@ -73,15 +73,13 @@ new c = do
               let sendAll bs = if BS.null bs then
                                  return ()
                                else do
-                    debugM nameF $ "trying to send " ++ (show $ BS.length bs) ++ "B, " ++ (show bs)
                     n <- send (socket c) bs
-                    debugM nameF $ "sent " ++ (show n) ++ "B"
                     sendAll (BS.drop n bs)
               bs <- atomically $ takeTMVar qo
               sendAll $ BSL.toStrict $ toLazyByteString $ word16BE $ fromIntegral $ BS.length bs
               sendAll $ bs)
           (do
-              debugM nameM "send going down"
+              debugM nameM "send died"
               atomically $ writeTVar so False)
 
     
@@ -90,23 +88,20 @@ new c = do
               let nameF = nameM ++ ".recv"
               let recvAll' n = if n == 0 then return mempty
                     else do  -- IO ()
-                    debugM nameF $ "recving "
                     bs <- recv (socket c) n
-                    debugM nameF $ "recvd " ++ (show $ BS.length bs) ++ "B, " ++ (show bs)
 
                     when (BS.null bs) $ do
                       throwTo to ThreadKilled
                       throw ThreadKilled
                     mappend (byteString bs) <$> (recvAll' $ n - (BS.length bs))
                   recvAll n = do
-                    debugM nameF $ "trying to recv " ++ (show n) ++ "B"
                     BSL.toStrict <$> toLazyByteString <$> recvAll' n
               n <- lift $ recvAll 2
               let n' = ((fromIntegral $ BS.index n 0) `shift` 8) .|. (fromIntegral $ BS.index n 1)
               d <- lift $ recvAll $ n'
               lift $ atomically $ putTMVar qi $ d)
           (do
-              debugM nameM "recv going down"
+              debugM nameM "recv died"
               atomically $ writeTVar si False)
         
         return (resolve chan, do
