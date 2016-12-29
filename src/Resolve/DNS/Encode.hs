@@ -7,7 +7,9 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder 
 import Resolve.DNS.Types hiding (header, name, qtype, question, qclass)
-import qualified Resolve.DNS.Types as T 
+import Resolve.DNS.Utils
+import qualified Resolve.DNS.Types as T
+import qualified Resolve.DNS.EDNS.Encode as EE
 import Data.Monoid
 import Data.Word
 import Data.BitVector
@@ -21,54 +23,14 @@ instance Hashable QCLASS where
 instance Hashable QTYPE where
   hashWithSalt i a = i `xor` (fromIntegral $ fromQTYPE a)
 
-fromCLASS :: CLASS -> Word16
-fromCLASS c = case c of
-  IN -> 1
-  CH -> 3
-  HS -> 4
-  OTHER i -> i 
+data Error = EDNSError EE.Error
+           | LabelTooLong
+           deriving (Show)
 
-fromQCLASS :: QCLASS -> Word16
-fromQCLASS c = case c of
-  CLASS c' -> fromCLASS c'
-  ANY -> 5
-
-fromQTYPE :: QTYPE -> Word16  
-fromQTYPE t = case t of
-  Q_A -> 1
-  Q_NS -> 2
-  Q_CNAME -> 5
-  Q_SOA -> 6
-  Q_PTR -> 12
-  Q_MX -> 15
-  Q_TXT -> 16
-  Q_OTHER i -> i
-
-fromOPCODE :: OPCODE -> BitVector  
-fromOPCODE c = bitVec 4 $ case c of
-  STD -> 0
-  INV -> 1
-  SSR -> 2
-  
-fromRCODE :: RCODE -> BitVector  
-fromRCODE c = bitVec 4 $ case c of
-  NoErr -> 0
-  FormatErr -> 1
-  ServFail -> 2
-  NameErr -> 3
-  NotImpl -> 4
-  Refused -> 5
-  Other i -> i
-
-fromQR :: QR -> Bool
-fromQR c = case c of
-  Query -> False
-  Response -> True
-
-type SPut a = a -> Either String Builder
+type SPut a = a -> Either Error Builder
 type Put a = a -> Builder
 
-encode :: SPut a -> a -> Either String BSL.ByteString
+encode :: SPut a -> a -> Either Error BSL.ByteString
 encode e a = case e a of
   Left e -> Left e
   Right b -> Right $ toLazyByteString b
@@ -79,10 +41,16 @@ message m = fmap mconcat $ sequence [ Right $ header ( T.header m
                                                      , fromIntegral $ length $ answer m
                                                      , fromIntegral $ length $ authority m
                                                      , fromIntegral $ length $ additional m)
-                                          , fmap mconcat  (mapM question $ T.question m)
-                                          , fmap mconcat (mapM rr $ answer m)
-                                          , fmap mconcat (mapM rr $ authority m)
-                                          , fmap mconcat (mapM rr $ additional m)]
+                                          , mconcat <$>  (mapM question $ T.question m)
+                                          , mconcat <$> (mapM rr $ answer m)
+                                          , mconcat <$> (mapM rr $ authority m)
+                                          , mconcat <$> case opt m of
+                                                          Nothing -> mapM rr $ additional m
+                                                          Just opt' -> do
+                                                            opt_ <- case EE.opt opt' of
+                                                              Left e -> Left $ EDNSError e
+                                                              Right a -> Right a
+                                                            mapM rr $ (opt_ : additional m)]
   
 header :: Put (Header, Word16, Word16, Word16, Word16)
 header (h, qd, an, ns, ar) =
@@ -101,11 +69,9 @@ header (h, qd, an, ns, ar) =
   word16BE ar
 
 label :: SPut LABEL
-label l = if len < (fromIntegral (maxBound :: Word8)) then
-                  Right $ (word8 (fromIntegral len)) <> (byteString l)
-                else
-                  Left "Too long the LABEL"
-  where len = BS.length l
+label l = case safeFromIntegral (BS.length l) of
+  Nothing -> Left LabelTooLong
+  Just len -> Right $ (word8 len) <> (byteString l)
 
 name :: SPut NAME
 name (NAME n) = mconcat <$> mapM label n
@@ -125,9 +91,9 @@ rr :: SPut RR
 rr rr = do
   b <- d
   let bs = toLazyByteString b
-  let len = BSL.length bs
-  if len < (fromIntegral (maxBound :: Word16)) then Right ()
-    else Left "too large the RDATA"
+  len <- case safeFromIntegral (BSL.length bs) of
+    Nothing -> Left LabelTooLong
+    Just x -> Right x
     
   mconcat <$> sequence [ name $ T.name rr
                        , Right $ word16BE t

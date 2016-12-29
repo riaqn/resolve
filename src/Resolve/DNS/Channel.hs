@@ -38,7 +38,7 @@ nameM = "Resolve.DNS.Channel"
 type Send = ByteString -> IO ()
 type Recv = IO ByteString
 
-data EncodeError = EncodeError String 
+data EncodeError = EncodeError E.Error
                  deriving (Typeable, Show)
 
 data Dead = Dead

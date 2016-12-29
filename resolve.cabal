@@ -34,6 +34,7 @@ library
                      , Resolve.DNS.Server.UDP
                      , Resolve.DNS.Server.TCP
                      , Resolve.DNS.Server.Types
+                     , Resolve.DNS.EDNS.Types
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , attoparsec

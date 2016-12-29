@@ -25,7 +25,7 @@ instance Exception DecodeError where
   toException = serverExceptionToException
   fromException = serverExceptionFromException
 
-data EncodeError = EncodeError String
+data EncodeError = EncodeError E.Error
   deriving (Typeable, Show)
 
 instance Exception EncodeError where

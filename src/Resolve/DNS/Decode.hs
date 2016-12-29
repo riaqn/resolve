@@ -2,7 +2,10 @@ module Resolve.DNS.Decode where
 
 import Prelude hiding (take)
 import Resolve.DNS.Types hiding (name, header, question, qname, qclass, qtype)
-import qualified Resolve.DNS.Types as T 
+import qualified Resolve.DNS.Types as T
+import qualified  Resolve.DNS.EDNS.Types as ET
+import qualified Resolve.DNS.EDNS.Decode as ED
+
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -15,55 +18,10 @@ import Data.Tuple
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
 import Control.Monad
-import Data.BitVector hiding (not)
+import Data.BitVector hiding (not, foldr)
 
 import Data.IP
 
-toCLASS :: Word16 -> CLASS
-toCLASS c = case c of
-  1 -> IN
-  3 -> CH 
-  4 -> HS 
-  i -> OTHER i 
-
-toQCLASS :: Word16 -> QCLASS
-toQCLASS c = case toCLASS c of
-  OTHER i -> case i of
-               5 -> ANY
-               _ -> CLASS $ OTHER i
-  j -> CLASS $ j
-
-toQTYPE :: Word16   -> QTYPE 
-toQTYPE t = case t of
-  1 ->  Q_A 
-  2 -> Q_NS 
-  5 -> Q_CNAME 
-  6 ->   Q_SOA
-  12 ->   Q_PTR 
-  15 ->   Q_MX 
-  16 ->  Q_TXT 
-  i ->   Q_OTHER i 
-
-toOPCODE :: BitVector -> OPCODE 
-toOPCODE c = case c of
-  0 -> STD 
-  1 -> INV 
-  2 -> SSR 
-  
-toRCODE :: BitVector   -> RCODE 
-toRCODE c = case c of
-  0 ->  NoErr
-  1 ->  FormatErr
-  2 ->  ServFail
-  3 ->  NameErr
-  4 ->  NotImpl
-  5 ->  Refused
-  i ->  Other $ fromIntegral i
-
-toQR :: Bool -> QR
-toQR c = case c of
-  False -> Query 
-  True -> Response
 
 
 type SGet = ReaderT ByteString Parser
@@ -73,16 +31,28 @@ decodeMessage bs = parseOnly (runReaderT message bs) bs
 
 message :: SGet T.Message
 message = do
-    (h, qd, an, ns, ar) <- lift header
+    (h, nque, nans, naut, nadd) <- lift header
     if tc h then
-      return $ T.Message h [] [] [] []
-      else
-      T.Message h
-      <$> count (fromIntegral qd) question
-      <*> count (fromIntegral an) rr
-      <*> count (fromIntegral ns) rr
-      <*> count (fromIntegral ar) rr
-      
+      return $ T.Message h [] [] [] [] Nothing
+      else do
+      que <- count (fromIntegral nque) question
+      ans <- count (fromIntegral nans) rr
+      aut <- count (fromIntegral naut) rr
+      add <- count (fromIntegral nadd) rr
+
+      let m = foldr (\rr m -> do
+                (l_opt, l_rst) <- m
+                case ED.opt rr of
+                  Left e -> case e of
+                    ED.NotOPT -> return (l_opt, rr:l_rst)
+                    e -> Left $ show e
+                  Right opt -> case l_opt of
+                    Nothing -> return (Just opt, l_rst)
+                    Just _ -> Left $ "more than one OPT"
+            ) (return (Nothing, [])) add
+      case m of
+        Left e -> error e
+        Right (opt', add') -> return $ T.Message h que ans aut add' opt'
 
 toBool :: (Eq a, Num a) => a -> Bool
 toBool = (/= 0)
