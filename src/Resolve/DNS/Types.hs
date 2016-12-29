@@ -8,7 +8,6 @@ import Data.Maybe
 import Data.Bits
 import Data.BitVector
 import Data.List
-import Data.IP
 import Data.Typeable
 
 
@@ -156,7 +155,7 @@ data RDATA_COM = CNAME NAME
                deriving (Eq, Ord, Show)
 
 data RDATA = RR_COM CLASS RDATA_COM
-           | RR_A IPv4
+           | RR_A Word32
            | RR_OTHER CLASS Word16 ByteString
     deriving (Eq, Ord, Show)
 

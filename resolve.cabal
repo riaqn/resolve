@@ -45,7 +45,6 @@ library
                      , stm
                      , stm-containers
                      , hslogger
-                     , iproute
   default-language:    Haskell2010
   default-extensions:  BinaryLiterals
                      , MultiParamTypeClasses
