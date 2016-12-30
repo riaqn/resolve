@@ -1,6 +1,7 @@
-module Resolve.DNS.Helper.LiveTCP where
+module Resolve.DNS.Transport.Helper.LiveTCP where
 
-import qualified Resolve.DNS.LiveTCP as TCP
+import Resolve.DNS.Transport.Types
+import qualified Resolve.DNS.Transport.LiveTCP as TCP
 import Resolve.Types
 import Resolve.DNS.Types
 import System.Log.Logger
@@ -14,7 +15,7 @@ data Config = Config { host :: HostName
 
 lname = "Resolve.DNS.Helper.LiveTCP"              
 
-new :: Config -> IO (Resolver Message Message)
+new :: Config -> IO Transport
 new c = do
   let hints = defaultHints { addrSocketType = Stream}
   addr:_ <- getAddrInfo (Just hints) (Just $ host c) (Just $ port c)

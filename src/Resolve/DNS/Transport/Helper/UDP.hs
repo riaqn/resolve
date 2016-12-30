@@ -1,6 +1,7 @@
-module Resolve.DNS.Helper.UDP where
+module Resolve.DNS.Transport.Helper.UDP where
 
-import qualified Resolve.DNS.UDP as UDP
+import  Resolve.DNS.Transport.Types
+import qualified Resolve.DNS.Transport.UDP as UDP
 import Resolve.Types
 import Resolve.DNS.Types
 
@@ -11,7 +12,7 @@ data Config = Config { host :: HostName
                      }
               deriving (Show)
 
-new :: Config -> IO (Resolver Message Message)
+new :: Config -> IO Transport
 new c = do
   let hints = defaultHints { addrSocketType = Datagram}
   addr:_ <- getAddrInfo (Just hints) (Just $ host c) (Just $ port c)

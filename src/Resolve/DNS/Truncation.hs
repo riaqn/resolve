@@ -2,9 +2,7 @@ module Resolve.DNS.Truncation where
 
 import Resolve.Types
 import Resolve.DNS.Types
-import qualified Resolve.DNS.Channel as C
-import qualified Resolve.DNS.UDP as UDP
-import qualified Resolve.DNS.LiveTCP as TCP
+import qualified Resolve.DNS.Transport.UDP as UDP
 
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class

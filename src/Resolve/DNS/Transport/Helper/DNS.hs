@@ -4,7 +4,6 @@ import Network.Socket
 
 import Resolve.Types
 import Resolve.DNS.Types
-import qualified Resolve.DNS.Channel as C
 
 import qualified Resolve.DNS.Helper.UDP as UDP
 import qualified Resolve.DNS.Helper.LiveTCP as TCP
