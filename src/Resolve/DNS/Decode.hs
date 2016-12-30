@@ -20,10 +20,6 @@ import Control.Monad.Trans.Reader
 import Control.Monad
 import Data.BitVector hiding (not, foldr)
 
-import Data.IP
-
-
-
 type SGet = ReaderT ByteString Parser
 
 decodeMessage :: ByteString -> Either String Message
@@ -109,10 +105,10 @@ rr = do
                     <*> lift anyWord32be <*> lift anyWord32be <*> lift anyWord32be <*> lift anyWord32be)
         (16, _) -> RR_COM c <$> TXT <$> many1 charString
         (1, IN) -> RR_A <$> (lift $ do
-                                ip <- count 4 anyWord8
+                                ip <- anyWord32be
                                 flag <- atEnd
                                 when (not flag) $ error "IPv4 is not 4B?"
-                                return $ toIPv4 $ map fromIntegral ip)
+                                return ip)
         _ -> RR_OTHER c t <$> lift takeByteString
   bs <- ask
   case parseOnly (runReaderT p bs) rdata of

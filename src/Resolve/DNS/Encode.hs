@@ -15,7 +15,6 @@ import Data.Word
 import Data.BitVector
 import Data.Maybe
 import Data.Hashable
-import Data.IP
 
 instance Hashable QCLASS where
   hashWithSalt i a = i `xor` (fromIntegral $ fromQCLASS a)
@@ -126,5 +125,5 @@ rr rr = do
             PTR n -> (c, 12, name n)
             MX ref n -> (c, 15, mappend <$> (Right $ word16BE ref) <*> (name n))
             TXT d -> (c, 16, Right $ mconcat $ map byteString d)
-          RR_A ip -> (IN, 1, Right $ mconcat $ map (word8 . fromIntegral) (fromIPv4 ip))
+          RR_A ip -> (IN, 1, Right $ word32BE ip)
           RR_OTHER c t d -> (c, t, Right $ byteString d)
