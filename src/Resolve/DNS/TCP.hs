@@ -2,6 +2,7 @@ module Resolve.DNS.TCP where
 
 import Resolve.Types
 import Resolve.DNS.Types
+import Resolve.DNS.Utils
 import qualified Resolve.DNS.Channel as C
 
 import Data.Typeable
@@ -39,6 +40,13 @@ instance Exception Closed where
     toException = dnsExceptionToException
     fromException = dnsExceptionFromException
 
+data QueryTooLong = QueryTooLong
+           deriving (Typeable, Show)
+
+instance Exception QueryTooLong where
+    toException = dnsExceptionToException
+    fromException = dnsExceptionFromException
+    
 new :: Config -> IO (Resolver Message Message)
 new c = do
   qi <- newEmptyTMVarIO
@@ -76,7 +84,10 @@ new c = do
                     n <- send (socket c) bs
                     sendAll (BS.drop n bs)
               bs <- atomically $ takeTMVar qo
-              sendAll $ BSL.toStrict $ toLazyByteString $ word16BE $ fromIntegral $ BS.length bs
+              len <-  case safeFromIntegral (BS.length bs) of
+                Nothing -> throwIO QueryTooLong
+                Just x -> return x
+              sendAll $ BSL.toStrict $ toLazyByteString $ word16BE len
               sendAll $ bs)
           (do
               debugM nameM "send died"

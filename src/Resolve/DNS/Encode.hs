@@ -25,6 +25,7 @@ instance Hashable QTYPE where
 
 data Error = EDNSError EE.Error
            | LabelTooLong
+           | TooManyRR
            deriving (Show)
 
 type SPut a = a -> Either Error Builder
@@ -36,21 +37,29 @@ encode e a = case e a of
   Right b -> Right $ toLazyByteString b
 
 message :: SPut Message
-message m = fmap mconcat $ sequence [ Right $ header ( T.header m
-                                                     , fromIntegral $ length $ T.question m
-                                                     , fromIntegral $ length $ answer m
-                                                     , fromIntegral $ length $ authority m
-                                                     , fromIntegral $ length $ additional m)
-                                          , mconcat <$>  (mapM question $ T.question m)
-                                          , mconcat <$> (mapM rr $ answer m)
-                                          , mconcat <$> (mapM rr $ authority m)
-                                          , mconcat <$> case opt m of
-                                                          Nothing -> mapM rr $ additional m
-                                                          Just opt' -> do
-                                                            opt_ <- case EE.opt opt' of
-                                                              Left e -> Left $ EDNSError e
-                                                              Right a -> Right a
-                                                            mapM rr $ (opt_ : additional m)]
+message m = fmap mconcat $ sequence [ do
+                                        let len x = case safeFromIntegral (length x) of
+                                              Nothing -> Left TooManyRR
+                                              Just y -> Right y
+                                        nque <- len $ T.question m
+                                        nans <- len $ answer m
+                                        naut <- len $ authority m
+                                        nadd <- len $ additional m
+                                        return $ header ( T.header m
+                                                        , nque
+                                                        , nans
+                                                        , naut
+                                                        , nadd)
+                                    , mconcat <$>  (mapM question $ T.question m)
+                                    , mconcat <$> (mapM rr $ answer m)
+                                    , mconcat <$> (mapM rr $ authority m)
+                                    , mconcat <$> case opt m of
+                                                    Nothing -> mapM rr $ additional m
+                                                    Just opt' -> do
+                                                      opt_ <- case EE.opt opt' of
+                                                        Left e -> Left $ EDNSError e
+                                                        Right a -> Right a
+                                                      mapM rr $ (opt_ : additional m)]
   
 header :: Put (Header, Word16, Word16, Word16, Word16)
 header (h, qd, an, ns, ar) =
@@ -99,7 +108,7 @@ rr rr = do
                        , Right $ word16BE t
                        , Right $ word16BE $ fromCLASS $ c
                        , Right $ word32BE $ ttl rr
-                       , Right $ word16BE (fromIntegral len)
+                       , Right $ word16BE len
                        , Right $ lazyByteString  bs]
   where (c, t, d) = case rdata rr of
           RR_COM c com -> case com of 
