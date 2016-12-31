@@ -20,6 +20,7 @@ library
                      , Resolve.Retry
                      , Resolve.Log
                      , Resolve.DNS.Transport.Types
+                     , Resolve.DNS.Transport.Exceptions
                      , Resolve.DNS.Transport.UDP
                      , Resolve.DNS.Transport.TCP
                      , Resolve.DNS.Transport.LiveTCP
@@ -31,6 +32,7 @@ library
                      , Resolve.DNS.Transport.Helper.TCP
                      , Resolve.DNS.Transport.Helper.UDP
                      , Resolve.DNS.Transport.Helper.LiveTCP
+                     
                      , Resolve.DNS.EDNS.Types
                      , Resolve.DNS.EDNS.Decode
                      , Resolve.DNS.EDNS.Encode

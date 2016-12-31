@@ -1,13 +1,12 @@
-module Resolve.DNS.Server.Exceptions where
+module Resolve.DNS.Transport.Exceptions where
 
 import qualified Resolve.DNS.Exceptions as DNS
-
-import Data.Typeable
 import Control.Exception
+import Data.Typeable
 
 data Error where
   Error :: Exception e => e -> Error
-  deriving  (Typeable)
+  deriving (Typeable)
 
 instance Show Error where
   show (Error e) = show e

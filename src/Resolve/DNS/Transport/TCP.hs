@@ -2,7 +2,7 @@ module Resolve.DNS.Transport.TCP where
 
 import Resolve.Types
 import Resolve.DNS.Types
-import Resolve.DNS.Exceptions
+import Resolve.DNS.Transport.Exceptions
 import Resolve.DNS.Utils
 import Resolve.DNS.Encode as E
 import Resolve.DNS.Decode as D
