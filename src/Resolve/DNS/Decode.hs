@@ -3,6 +3,7 @@ module Resolve.DNS.Decode where
 import Prelude hiding (take)
 import Resolve.DNS.Types hiding (name, header, question, qname, qclass, qtype)
 import qualified Resolve.DNS.Types as T
+import qualified Resolve.DNS.Exceptions as E
 import qualified  Resolve.DNS.EDNS.Types as ET
 import qualified Resolve.DNS.EDNS.Decode as ED
 
@@ -18,9 +19,21 @@ import Data.Tuple
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
 import Control.Monad
+
+import Control.Exception
+import Data.Typeable
+
 import Data.BitVector hiding (not, foldr)
 
 type SGet = ReaderT ByteString Parser
+
+data Error = Error String
+  deriving (Show, Typeable)
+
+instance Exception Error where
+  toException = E.errorToException
+  fromException = E.errorFromException
+
 
 decodeMessage :: ByteString -> Either String Message
 decodeMessage bs = parseOnly (runReaderT message bs) bs

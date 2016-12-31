@@ -3,6 +3,7 @@ module Resolve.DNS.Client where
 
 import qualified Resolve.Types as T
 import Resolve.DNS.Types
+import Resolve.DNS.Exceptions
 import Resolve.DNS.Transport.Types
 
 import qualified Resolve.DNS.Encode as E
@@ -41,8 +42,8 @@ data Dead = Dead
              deriving (Typeable, Show)
 
 instance Exception Dead where
-  toException = dnsExceptionToException
-  fromException = dnsExceptionFromException
+  toException = errorToException
+  fromException = errorFromException
 
 data Config = Config { transport :: Transport
                      , nickname :: String
@@ -72,9 +73,9 @@ new c = do
           (\_ -> atomically $ writeTVar d True)
           
         return (T.Resolver { T.resolve = resolve $ Record { book = b
-                                                        , config = c
-                                                        , dead = d
-                                                        }
+                                                          , config = c
+                                                          , dead = d
+                                                          }
                            , T.delete = killThread tid
                            })
     )
@@ -98,7 +99,8 @@ resolve r a = do
             Just <$> takeTMVar mvar
         case x of
           Nothing -> throwIO Dead
-          Just x -> return x
+          -- MASQUERADE
+          Just x -> return $ x { header = (header x) {ident = ident $ header $ a}} 
     )
 
 allocate :: (Eq i, Hashable i, Num i) => M.Map i a -> i -> a -> STM i

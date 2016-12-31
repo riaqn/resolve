@@ -8,6 +8,7 @@ import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder 
 import Resolve.DNS.Types hiding (header, name, qtype, question, qclass)
 import Resolve.DNS.Utils
+import qualified Resolve.DNS.Exceptions as E
 import qualified Resolve.DNS.Types as T
 import qualified Resolve.DNS.EDNS.Encode as EE
 import Data.Monoid
@@ -15,6 +16,9 @@ import Data.Word
 import Data.BitVector
 import Data.Maybe
 import Data.Hashable
+
+import Control.Exception
+import Data.Typeable
 
 instance Hashable QCLASS where
   hashWithSalt i a = i `xor` (fromIntegral $ fromQCLASS a)
@@ -25,7 +29,12 @@ instance Hashable QTYPE where
 data Error = EDNSError EE.Error
            | LabelTooLong
            | TooManyRR
-           deriving (Show)
+           deriving (Show, Typeable)
+
+instance Exception Error where
+  toException = E.errorToException
+  fromException = E.errorFromException
+
 
 type SPut a = a -> Either Error Builder
 type Put a = a -> Builder

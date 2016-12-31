@@ -2,6 +2,7 @@ module Resolve.DNS.Transport.TCP where
 
 import Resolve.Types
 import Resolve.DNS.Types
+import Resolve.DNS.Exceptions
 import Resolve.DNS.Utils
 import Resolve.DNS.Encode as E
 import Resolve.DNS.Decode as D
@@ -39,29 +40,29 @@ data Closed = Closed
   deriving (Show, Typeable)
 
 instance Exception Closed where
-    toException = dnsExceptionToException
-    fromException = dnsExceptionFromException
+    toException = errorToException
+    fromException = errorFromException
 
 data QueryTooLong = QueryTooLong
            deriving (Typeable, Show)
 
 instance Exception QueryTooLong where
-    toException = dnsExceptionToException
-    fromException = dnsExceptionFromException
+    toException = errorToException
+    fromException = errorFromException
 
 data DecodeError = DecodeError String
            deriving (Typeable, Show)
 
 instance Exception DecodeError where
-    toException = dnsExceptionToException
-    fromException = dnsExceptionFromException
+    toException = errorToException
+    fromException = errorFromException
 
 data EncodeError = EncodeError E.Error
            deriving (Typeable, Show)
 
 instance Exception EncodeError where
-    toException = dnsExceptionToException
-    fromException = dnsExceptionFromException
+    toException = errorToException
+    fromException = errorFromException
 
     
 new :: Config -> IO T.Transport 

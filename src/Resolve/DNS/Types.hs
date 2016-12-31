@@ -11,28 +11,9 @@ import Data.List
 import Data.Typeable
 
 
-import Resolve.Types
+import qualified Resolve.Types as R
 import Resolve.DNS.EDNS.Types
 
-import Control.Exception
-
-data DNSException where
-  DNSException :: Exception e => e -> DNSException
-  deriving (Typeable)
-
-instance Show DNSException where
-  show (DNSException e) = show e
-
-instance Exception DNSException where
-  toException = resolveExceptionToException
-  fromException = resolveExceptionFromException
-
-dnsExceptionToException :: Exception e => e -> SomeException
-dnsExceptionToException = toException . DNSException
-
-dnsExceptionFromException x = do
-  DNSException a <- fromException x
-  cast a
 
 type LABEL = ByteString
 newtype NAME = NAME {unname :: [LABEL]} deriving (Eq, Ord)

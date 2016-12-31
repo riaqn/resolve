@@ -1,7 +1,9 @@
 module Resolve.DNS.Transport.UDP where
 
 import Resolve.Types
+
 import Resolve.DNS.Types
+import Resolve.DNS.Exceptions
 import Resolve.DNS.Utils
 import Resolve.DNS.Encode as E
 import Resolve.DNS.Decode as D
@@ -34,31 +36,15 @@ nameM = "Resolve.DNS.Transport.UDP"
 
 data Config = Config { socket :: Socket
                      , server :: SockAddr
+                     , payload :: IO Int
                      }
 
 data QueryTooLong = QueryTooLong
-           deriving (Typeable, Show)
+           deriving (Typeable, Show, Eq)
 
 instance Exception QueryTooLong where
-    toException = dnsExceptionToException
-    fromException = dnsExceptionFromException
-
-data DecodeError = DecodeError String
-           deriving (Typeable, Show)
-
-instance Exception DecodeError where
-    toException = dnsExceptionToException
-    fromException = dnsExceptionFromException
-
-data EncodeError = EncodeError E.Error
-           deriving (Typeable, Show)
-
-instance Exception EncodeError where
-    toException = dnsExceptionToException
-    fromException = dnsExceptionFromException
-
-
-maxLength = 512
+    toException = errorToException
+    fromException = errorFromException
 
 new :: Config -> IO T.Transport 
 new c = do
@@ -66,18 +52,20 @@ new c = do
     (do
         let recv' = let loop = do
                           let nameF = nameM ++ ".recv"
-                          (bs, sa) <- (recvFrom (socket c) maxLength)
+                          p <- payload c
+                          (bs, sa) <- (recvFrom (socket c) p)
                           if sa /= (server c) then loop
                             else case D.decodeMessage bs of
-                                   Left e -> throwIO $ DecodeError e
+                                   Left e -> throwIO $ D.Error e
                                    Right m -> return m
                     in
                       loop
                       
         let send' = \m -> do
+              p <- payload c
               case E.encode E.message m of
-                Left e -> throwIO $ EncodeError e
-                Right bs -> if BSL.length bs > fromIntegral maxLength then
+                Left e -> throwIO $ e
+                Right bs -> if BSL.length bs > fromIntegral p then
                             throwIO QueryTooLong
                             else void $ sendTo (socket c) (BSL.toStrict bs) (server c)
 

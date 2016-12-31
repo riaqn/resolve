@@ -3,9 +3,13 @@ module Resolve.DNS.EDNS.Decode where
 import Prelude hiding (take)
 
 import qualified Resolve.DNS.EDNS.Types as T
-import Resolve.DNS.Types
-import qualified Resolve.DNS.Encode as E
+import qualified Resolve.DNS.EDNS.Exceptions as E
+import Resolve.DNS.Types 
+import qualified Resolve.DNS.Encode as DNSE
+import qualified Resolve.DNS.EDNS.Exceptions
 import Control.Monad.Trans.Except
+import Control.Exception
+import Data.Typeable
 
 import Data.Attoparsec.ByteString hiding (option)
 import Data.Attoparsec.Binary
@@ -17,7 +21,11 @@ import qualified Data.ByteString as BS
 data Error = NameNotRoot
            | OptionParseError String
            | NotOPT
-           deriving (Show)
+           deriving (Show, Typeable)
+
+instance Exception Error where
+  toException = E.errorToException
+  fromException = E.errorFromException
 
 opt :: RR -> Either Error T.OPT
 opt rr = do

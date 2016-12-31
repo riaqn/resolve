@@ -12,6 +12,8 @@ import Data.Word
 
 import Data.Bits
 
+import Control.Exception
+
 data Error = DataTooLong
   deriving (Show)
 

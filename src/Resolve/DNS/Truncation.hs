@@ -2,37 +2,30 @@ module Resolve.DNS.Truncation where
 
 import Resolve.Types
 import Resolve.DNS.Types
+import Resolve.DNS.EDNS.Types
 import qualified Resolve.DNS.Transport.UDP as UDP
 
+import Control.Monad
+import Control.Monad.STM
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 import Control.Exception
+
+
+
+import Control.Concurrent.STM.TVar
 
 import System.Log.Logger
 
 nameM = "Resolve.DNS.Truncation"
 
 
-data Config = Config { udp :: Resolve Message Message
-                     , tcp :: Resolve Message Message
-                     }
 
-truncation :: Config -> Resolve Message Message
-truncation c a = do
-  let nameF = nameM
-  b <- try (udp c a)
-  res <- case b of
-    Left UDP.QueryTooLong -> do 
-        debugM nameF "query too long"
-        return Nothing
-    Right b -> if tc $ header $ b then do
-      debugM nameF "response truncated"
-      return Nothing
-      else 
-      return $ Just b
-  case res of
-    Nothing -> do
-      debugM nameF "using TCP"
-      tcp c a
-    Just b -> return b
-
+truncation :: Config -> IO (Resolve [Question] Message)
+truncation c = do
+  return (\a -> do 
+             p <- atomically $ do
+               this <- readTVar (p_this c)
+               that <- readTVar p_that
+               return (if this < that then this else that)
+             setPayload c p

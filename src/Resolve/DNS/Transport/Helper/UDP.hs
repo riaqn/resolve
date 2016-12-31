@@ -9,8 +9,8 @@ import Network.Socket
 
 data Config = Config { host :: HostName
                      , port :: ServiceName
+                     , payload :: IO Int
                      }
-              deriving (Show)
 
 new :: Config -> IO Transport
 new c = do
@@ -18,4 +18,6 @@ new c = do
   addr:_ <- getAddrInfo (Just hints) (Just $ host c) (Just $ port c)
   sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
   UDP.new $ UDP.Config { UDP.socket = sock
-                       , UDP.server = addrAddress addr}
+                       , UDP.server = addrAddress addr
+                       , UDP.payload = payload c
+                       }

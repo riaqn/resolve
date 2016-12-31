@@ -24,20 +24,21 @@ library
                      , Resolve.DNS.Transport.TCP
                      , Resolve.DNS.Transport.LiveTCP
                      , Resolve.DNS.Client
-                     , Resolve.DNS.Truncation
+                     , Resolve.DNS.Lookup
                      , Resolve.DNS.Decode
                      , Resolve.DNS.Encode
                      , Resolve.DNS.Types
                      , Resolve.DNS.Transport.Helper.TCP
                      , Resolve.DNS.Transport.Helper.UDP
                      , Resolve.DNS.Transport.Helper.LiveTCP
-                     , Resolve.DNS.Server.UDP
-                     , Resolve.DNS.Server.TCP
-                     , Resolve.DNS.Server.Types
                      , Resolve.DNS.EDNS.Types
                      , Resolve.DNS.EDNS.Decode
                      , Resolve.DNS.EDNS.Encode
                      , Resolve.DNS.Utils
+                     , Resolve.DNS.EDNS.Exceptions
+                     , Resolve.DNS.Exceptions
+                     , Resolve.Exceptions
+
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , attoparsec
