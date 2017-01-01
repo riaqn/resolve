@@ -1,9 +1,9 @@
 module Resolve.DNS.Transport.Types where
 
-import Resolve.DNS.Types
+import Data.ByteString.Lazy
 
-type Send = Message -> IO ()
-type Recv = IO Message
+type Send = ByteString -> IO ()
+type Recv = IO ByteString
 type Delete = IO ()
 
 data Transport = Transport { send :: Send

@@ -9,7 +9,7 @@ import Network.Socket
 
 data Config = Config { host :: HostName
                      , port :: ServiceName
-                     , payload :: IO Int
+                     , p_max :: Int
                      }
 
 new :: Config -> IO Transport
@@ -19,5 +19,5 @@ new c = do
   sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
   UDP.new $ UDP.Config { UDP.socket = sock
                        , UDP.server = addrAddress addr
-                       , UDP.payload = payload c
+                       , UDP.p_max = p_max c
                        }

@@ -24,7 +24,7 @@ library
                      , Resolve.DNS.Transport.UDP
                      , Resolve.DNS.Transport.TCP
                      , Resolve.DNS.Transport.LiveTCP
-                     , Resolve.DNS.Client
+                     , Resolve.DNS.Transport
                      , Resolve.DNS.Lookup
                      , Resolve.DNS.Decode
                      , Resolve.DNS.Encode

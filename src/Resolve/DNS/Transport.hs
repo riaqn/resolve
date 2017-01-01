@@ -1,8 +1,8 @@
-{-# LANGUAGE Unsafe #-}
-module Resolve.DNS.Client where
+module Resolve.DNS.Transport where
 
 import qualified Resolve.Types as T
 import Resolve.DNS.Types
+import Resolve.DNS.Utils
 import Resolve.DNS.Exceptions
 import Resolve.DNS.Transport.Types
 
@@ -14,7 +14,7 @@ import Data.Hashable
 import Data.Either
 import Data.Maybe
 
-import Data.ByteString (ByteString)
+import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -27,7 +27,6 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Reader
 import Control.Concurrent.STM.TVar
 import Control.Concurrent.STM.TMVar
-
 
 import Data.Typeable
 
@@ -49,12 +48,12 @@ data Config = Config { transport :: Transport
                      , nickname :: String
                      }
               
-data Record = Record { book :: M.Map Word16 (TMVar Message)
+data Record = Record { book :: M.Map Word16 (TMVar ByteString)
                      , config :: Config
                      , dead :: TVar Bool
                      }
 
-new :: Config -> IO (T.Resolver Message Message)
+new :: Config -> IO (T.Resolver ByteString ByteString)
 new c = do
   b <- M.newIO
   d <- newTVarIO False
@@ -64,12 +63,13 @@ new c = do
         tid <- forkFinally
           (forever $ runExceptT $ do  -- EitherT String IO ()
               let nameF = nameM ++ ".recv"
-              m <- lift $ recv $ transport c
-              let ident' = (ident $ header $ m)
-              r <- lift $ atomically $ lookupAndDelete b ident'
+              bs <- lift $ recv $ transport c
+              let (bs_id, bs_res) = BSL.splitAt 2 bs
+              let ident = toWord16 $ BSL.toStrict bs_id
+              r <- lift $ atomically $ lookupAndDelete b ident
               case r of
                 Nothing -> throwE "ID not in book"
-                Just mvar -> lift $ atomically $ tryPutTMVar mvar m)
+                Just mvar -> lift $ atomically $ tryPutTMVar mvar bs)
           (\_ -> atomically $ writeTVar d True)
           
         return (T.Resolver { T.resolve = resolve $ Record { book = b
@@ -83,24 +83,27 @@ new c = do
     (\r -> return r)
     
 
-resolve :: Record -> T.Resolve Message Message
+resolve :: Record -> T.Resolve ByteString ByteString
 resolve r a = do 
   mvar <- newEmptyTMVarIO
+  let (a_id, a_res) = BSL.splitAt 2 a
   bracketOnError
-    (atomically $ allocate (book r) (ident $ header $ a) mvar)
+    (atomically $ allocate (book r) (toWord16 $ BSL.toStrict a_id) mvar)
     (\ident_ -> atomically $ lookupAndDelete (book r) ident_)
     (\ident_ -> do 
-        let a_ = a { header = (header a) { ident = ident_ }}
-        forkIO $ (send $ transport $ config $ r) a
-        x <- atomically $ do
+        let a_ = BSL.append (BSL.fromStrict $ fromWord16 ident_) a_res
+        forkIO $ (send $ transport $ config $ r) a_
+        b <- atomically $ do
           a <- readTVar $ dead r
           if a then tryTakeTMVar mvar
             else 
             Just <$> takeTMVar mvar
-        case x of
+        case b of
           Nothing -> throwIO Dead
           -- MASQUERADE
-          Just x -> return $ x { header = (header x) {ident = ident $ header $ a}} 
+          Just b -> do
+            let (b_id, b_res) = BSL.splitAt 2 b
+            return $ BSL.append a_id b_res
     )
 
 allocate :: (Eq i, Hashable i, Num i) => M.Map i a -> i -> a -> STM i

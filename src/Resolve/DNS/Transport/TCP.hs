@@ -82,19 +82,17 @@ new c = do
                     when (BSL.null bs) $ throwIO ThreadKilled
                     mappend (lazyByteString bs) <$> (recvAll' $ n - (BSL.length bs))
                   recvAll n = do
-                    BSL.toStrict <$> toLazyByteString <$> recvAll' n
+                    toLazyByteString <$> recvAll' n
               n <- lift $ recvAll 2
-              let n' = ((fromIntegral $ BS.index n 0) `shift` 8) .|. (fromIntegral $ BS.index n 1)
-              d <- lift $ recvAll $ n'
-              case D.decodeMessage d of
-                Left e -> lift $ throwIO $ DecodeError e
-                Right m -> lift $ atomically $ putTMVar qi $ m
+              let n' = ((fromIntegral $ BSL.index n 0) `shift` 8) .|. (fromIntegral $ BSL.index n 1)
+              bs <- lift $ recvAll $ n'
+              lift $ atomically $ putTMVar qi $ bs
           )
           (do
               debugM nameM "recv died"
               atomically $ writeTVar si False)
           
-        let send' = \m -> bracket_
+        let send' = \bs -> bracket_
                            (putMVar l ())
                            (takeMVar l)
                            (do
@@ -107,9 +105,7 @@ new c = do
                                            throwIO Closed
                                        )
                                      sendAll (BSL.drop n bs)
-                               bs <- case E.encode E.message m of 
-                                 Left e -> throwIO $ EncodeError e
-                                 Right bs -> return $ bs
+                               
                                len <-  case safeFromIntegral (BSL.length bs) of
                                    Nothing -> throwIO QueryTooLong
                                    Just x -> return x

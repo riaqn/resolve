@@ -12,6 +12,7 @@ import qualified Resolve.DNS.Transport.Types as T
 import Data.Typeable
 import Data.ByteString.Builder
 import Data.ByteString (ByteString)
+import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -36,15 +37,8 @@ nameM = "Resolve.DNS.Transport.UDP"
 
 data Config = Config { socket :: Socket
                      , server :: SockAddr
-                     , payload :: IO Int
+                     , p_max :: Int
                      }
-
-data QueryTooLong = QueryTooLong
-           deriving (Typeable, Show, Eq)
-
-instance Exception QueryTooLong where
-    toException = errorToException
-    fromException = errorFromException
 
 new :: Config -> IO T.Transport 
 new c = do
@@ -52,22 +46,14 @@ new c = do
     (do
         let recv' = let loop = do
                           let nameF = nameM ++ ".recv"
-                          p <- payload c
-                          (bs, sa) <- (recvFrom (socket c) p)
+                          (bs, sa) <- (recvFrom (socket c) $ p_max c)
                           if sa /= (server c) then loop
-                            else case D.decodeMessage bs of
-                                   Left e -> throwIO $ D.Error e
-                                   Right m -> return m
+                            else return $ BSL.fromStrict bs 
                     in
                       loop
                       
-        let send' = \m -> do
-              p <- payload c
-              case E.encode E.message m of
-                Left e -> throwIO $ e
-                Right bs -> if BSL.length bs > fromIntegral p then
-                            throwIO QueryTooLong
-                            else void $ sendTo (socket c) (BSL.toStrict bs) (server c)
+        let send' = \bs -> do
+              void $ sendTo (socket c) (BSL.toStrict bs) (server c)
 
         
         return $ T.Transport { T.send = send'
