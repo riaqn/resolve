@@ -44,17 +44,13 @@ instance Exception Dead where
   toException = errorToException
   fromException = errorFromException
 
-data Config = Config { transport :: Transport
-                     , nickname :: String
-                     }
-              
 data Record = Record { book :: M.Map Word16 (TMVar ByteString)
-                     , config :: Config
                      , dead :: TVar Bool
+                     , transport :: Transport
                      }
 
-new :: Config -> IO (T.Resolver ByteString ByteString)
-new c = do
+new :: Transport -> IO (T.Resolver ByteString ByteString)
+new t = do
   b <- M.newIO
   d <- newTVarIO False
 
@@ -63,7 +59,7 @@ new c = do
         tid <- forkFinally
           (forever $ runExceptT $ do  -- EitherT String IO ()
               let nameF = nameM ++ ".recv"
-              bs <- lift $ recv $ transport c
+              bs <- lift $ recv $ t
               let (bs_id, bs_res) = BSL.splitAt 2 bs
               let ident = toWord16 $ BSL.toStrict bs_id
               r <- lift $ atomically $ lookupAndDelete b ident
@@ -73,8 +69,8 @@ new c = do
           (\_ -> atomically $ writeTVar d True)
           
         return (T.Resolver { T.resolve = resolve $ Record { book = b
-                                                          , config = c
                                                           , dead = d
+                                                          , transport = t
                                                           }
                            , T.delete = killThread tid
                            })
@@ -92,7 +88,7 @@ resolve r a = do
     (\ident_ -> atomically $ lookupAndDelete (book r) ident_)
     (\ident_ -> do 
         let a_ = BSL.append (BSL.fromStrict $ fromWord16 ident_) a_res
-        forkIO $ (send $ transport $ config $ r) a_
+        forkIO $ (send $ transport $ r) a_
         b <- atomically $ do
           a <- readTVar $ dead r
           if a then tryTakeTMVar mvar

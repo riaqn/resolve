@@ -16,6 +16,7 @@ import Control.Exception
 import Control.Concurrent.STM.TVar
 import Data.Typeable
 import Data.List
+import Data.Maybe
 import Data.Word
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BSL
@@ -33,14 +34,15 @@ data Response = Response { ranswer ::  [RR]
 data Error = Truncated
            | WierdResponse String
            | ErrorResponse (Maybe Word8) RCODE
+           | NoResolver
              deriving (Typeable, Show)
 
 instance Exception Error where
   toException = E.errorToException
   fromException = E.errorFromException
 
-data Config = Config { udp :: (R.Resolve ByteString ByteString, IO Word16)
-                     , tcp :: R.Resolve ByteString ByteString
+data Config = Config { udp :: Maybe (R.Resolve ByteString ByteString, IO Word16)
+                     , tcp :: Maybe (R.Resolve ByteString ByteString)
                      }
 
 data Lookup = Lookup { config :: Config
@@ -55,14 +57,14 @@ new c = do
                  }
           
   return $ R.Resolver { R.resolve = resolve $ Lookup { config = c
-                                                 , p_that = p
-                                                 }
+                                                     , p_that = p
+                                                     }
                       , R.delete = return ()
                       }
 
 resolve :: Lookup -> R.Resolve Query Response
 resolve l q = do
-  this <- snd $ udp $ config $ l
+  this <- fromMaybe (return 512) (snd <$> (udp $ config $ l))
   let a =  Message { header = Header { ident = 0
                                      , qr = T.Query
                                      , opcode = STD
@@ -88,21 +90,34 @@ resolve l q = do
     Left e -> throwIO e
     Right bs -> return bs
 
-  this <- snd $ udp $ config $ l
   that <- atomically $ readTVar $ p_that l
   let p = min this that
 
+  let resolve' r l bs_a = do
+        bs_b <- r bs_a
+        b <- case DC.decodeMessage (BSL.toStrict bs_b) of
+          Left e -> throwIO $ DC.Error e
+          Right b -> return b
+
+        case opt b of
+          Nothing -> return ()
+          Just o -> do
+            atomically $ when (udp_size o >= 512) $ writeTVar (p_that l) $ udp_size o
+            when ((version o /= 0) || (dnssec_ok o /= False)) $ throwIO $ WierdResponse "some EDNS field is strange"
+        return b
+
   b <- if BSL.length bs_a > fromIntegral p then return Nothing
-    else do
-    b <- resolve' (fst $ udp $ config $ l) l bs_a
-    if tc $ header $ b then return Nothing
-      else return $ Just b
+    else maybe (return Nothing) (\r -> do
+                                    b <- resolve' r l bs_a
+                                    if tc $ header $ b then return Nothing
+                                      else return $ Just b
+                                ) (fst <$> (udp $ config $ l))
 
   b <- case b of
-    Nothing -> do
-      b <- resolve' (tcp $ config $ l) l bs_a
-      when (tc $ header $ b) $ throwIO $ WierdResponse "TC bit is set in a TCP response"
-      return b
+    Nothing -> maybe (throwIO NoResolver) (\r -> do
+                                              b <- resolve' r l bs_a
+                                              when (tc $ header $ b) $ throwIO $ WierdResponse "TC bit is set in a TCP response"
+                                              return b) (tcp $ config $ l)
     Just b -> return b
 
   let h = header b
@@ -120,18 +135,3 @@ resolve l q = do
                     , radditional = additional b
                     , ropt = options <$> opt b
                     }
-
-
-resolve' :: R.Resolve ByteString ByteString -> Lookup -> ByteString -> IO (Message)
-resolve' r l bs_a = do
-  bs_b <- r bs_a
-  b <- case DC.decodeMessage (BSL.toStrict bs_b) of
-    Left e -> throwIO $ DC.Error e
-    Right b -> return b
-
-  case opt b of
-    Nothing -> return ()
-    Just o -> do
-      atomically $ when (udp_size o >= 512) $ writeTVar (p_that l) $ udp_size o
-      when ((version o /= 0) || (dnssec_ok o /= False)) $ throwIO $ WierdResponse "some EDNS field is strange"
-  return b

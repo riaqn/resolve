@@ -26,13 +26,13 @@ library
                      , Resolve.DNS.Transport.LiveTCP
                      , Resolve.DNS.Transport
                      , Resolve.DNS.Lookup
+                     , Resolve.DNS.Coding
                      , Resolve.DNS.Decode
                      , Resolve.DNS.Encode
                      , Resolve.DNS.Types
                      , Resolve.DNS.Transport.Helper.TCP
                      , Resolve.DNS.Transport.Helper.UDP
                      , Resolve.DNS.Transport.Helper.LiveTCP
-                     
                      , Resolve.DNS.EDNS.Types
                      , Resolve.DNS.EDNS.Decode
                      , Resolve.DNS.EDNS.Encode
