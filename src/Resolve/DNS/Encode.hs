@@ -97,6 +97,13 @@ question q = mconcat <$> sequence [ name (qname q)
                                   , Right $ qtype (T.qtype q)
                                   , Right $ qclass (T.qclass q)]
 
+charString :: SPut BS.ByteString
+charString bs = do
+  n <- case safeFromIntegral (BS.length bs) of
+    Nothing -> Left LabelTooLong
+    Just n -> return n
+  return $ (word8 n) <> (byteString bs)
+  
 rr :: SPut RR
 rr rr = do
   b <- d
@@ -126,6 +133,6 @@ rr rr = do
                                           ])
             PTR n -> (c, 12, name n)
             MX ref n -> (c, 15, mappend <$> (Right $ word16BE ref) <*> (name n))
-            TXT d -> (c, 16, Right $ mconcat $ map byteString d)
+            TXT d -> (c, 16, mconcat <$> mapM charString d)
           RR_A ip -> (IN, 1, Right $ word32BE ip)
           RR_OTHER c t d -> (c, t, Right $ byteString d)

@@ -126,7 +126,7 @@ resolve l q = do
     throwIO $ ErrorResponse  (ext_rcode <$> opt b) (rcode h)
   
   return $ Response { ranswer = answer b
-                    , rauthority = answer b
+                    , rauthority = authority b
                     , radditional = additional b
                     , ropt = options <$> opt b
                     }
