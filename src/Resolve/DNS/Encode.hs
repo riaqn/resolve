@@ -1,7 +1,5 @@
 module Resolve.DNS.Encode where
 
-import Control.Monad.Trans.State
-import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder (Builder)
@@ -14,17 +12,9 @@ import qualified Resolve.DNS.EDNS.Encode as EE
 import Data.Monoid
 import Data.Word
 import Data.BitVector
-import Data.Maybe
-import Data.Hashable
 
 import Control.Exception
 import Data.Typeable
-
-instance Hashable QCLASS where
-  hashWithSalt i a = i `xor` (fromIntegral $ fromQCLASS a)
-  
-instance Hashable QTYPE where
-  hashWithSalt i a = i `xor` (fromIntegral $ fromQTYPE a)
 
 data Error = EDNSError EE.Error
            | LabelTooLong
@@ -45,29 +35,32 @@ encode e a = case e a of
   Right b -> Right $ toLazyByteString b
 
 message :: SPut Message
-message m = fmap mconcat $ sequence [ do
-                                        let len x = case safeFromIntegral (length x) of
-                                              Nothing -> Left TooManyRR
-                                              Just y -> Right y
-                                        nque <- len $ T.question m
-                                        nans <- len $ answer m
-                                        naut <- len $ authority m
-                                        nadd <- len $ additional m
-                                        return $ header ( T.header m
-                                                        , nque
-                                                        , nans
-                                                        , naut
-                                                        , nadd)
-                                    , mconcat <$>  (mapM question $ T.question m)
-                                    , mconcat <$> (mapM rr $ answer m)
-                                    , mconcat <$> (mapM rr $ authority m)
-                                    , mconcat <$> case opt m of
-                                                    Nothing -> mapM rr $ additional m
-                                                    Just opt' -> do
-                                                      opt_ <- case EE.opt opt' of
-                                                        Left e -> Left $ EDNSError e
-                                                        Right a -> Right a
-                                                      mapM rr $ (opt_ : additional m)]
+message m = do
+  add <- case opt m of
+        Nothing -> Right $ additional m
+        Just opt' -> case EE.opt opt' of
+          Left e -> Left $ EDNSError e
+          Right a -> Right $ a : (additional m)
+          
+  fmap mconcat $ sequence [ do
+                              let len x = case safeFromIntegral (length x) of
+                                            Nothing -> Left TooManyRR
+                                            Just y -> Right y
+            
+                              nque <- len $ T.question m
+                              nans <- len $ answer m
+                              naut <- len $ authority m
+                              nadd <- len $ add
+                              return $ header ( T.header m
+                                              , nque
+                                              , nans
+                                              , naut
+                                              , nadd)
+                          , mconcat <$>  (mapM question $ T.question m)
+                          , mconcat <$> (mapM rr $ answer m)
+                          , mconcat <$> (mapM rr $ authority m)
+                          , mconcat <$> (mapM rr $ add)
+                          ]
   
 header :: Put (Header, Word16, Word16, Word16, Word16)
 header (h, qd, an, ns, ar) =

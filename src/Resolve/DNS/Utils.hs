@@ -10,7 +10,7 @@ safeFromIntegral x = let y = fromIntegral x
   else Nothing
 
 toWord16 :: ByteString -> Word16
-toWord16 bs = ((fromIntegral $ index bs 0) `shift` 8) .|. (fromIntegral $ index bs 1)
+toWord16 bs = Data.ByteString.foldl (\a b -> a `shift` 8 .|. (fromIntegral b)) 0 bs 
 
 fromWord16 :: Word16 -> ByteString
 fromWord16 w = cons (fromIntegral (w `shift` (-8) .&. 0xff)) $ cons (fromIntegral (w .&. 0xff)) empty

@@ -2,14 +2,12 @@ module Resolve.DNS.Transport.Helper.LiveTCP where
 
 import Resolve.DNS.Transport.Types
 import qualified Resolve.DNS.Transport.LiveTCP as TCP
-import Resolve.Types
-import Resolve.DNS.Types
-import System.Log.Logger
 
 import Network.Socket
 
 data Config = Config { host :: HostName
                      , port :: ServiceName
+                     , passive :: Bool
                      }
               deriving (Show)
 
@@ -22,4 +20,5 @@ new c = do
   TCP.new $ TCP.Config { TCP.family = addrFamily addr
                        , TCP.protocol = addrProtocol addr
                        , TCP.server = addrAddress addr
+                       , TCP.passive = passive c
                        }

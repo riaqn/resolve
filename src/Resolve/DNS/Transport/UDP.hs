@@ -1,18 +1,7 @@
 module Resolve.DNS.Transport.UDP where
 
-import Resolve.Types
-
-import Resolve.DNS.Types
-import Resolve.DNS.Transport.Exceptions
-import Resolve.DNS.Utils
-import Resolve.DNS.Encode as E
-import Resolve.DNS.Decode as D
 import qualified Resolve.DNS.Transport.Types as T
 
-import Data.Typeable
-import Data.ByteString.Builder
-import Data.ByteString (ByteString)
-import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -20,16 +9,8 @@ import qualified Data.ByteString.Lazy as BSL
 import Network.Socket hiding (recvFrom, sendTo, socket)
 import Network.Socket.ByteString
 
-import Data.Bits
-
 import Control.Monad
-import Control.Monad.Trans.Except
-import Control.Monad.Trans.Class
-import Control.Concurrent
 import Control.Exception
-import Control.Concurrent.STM.TMVar
-import Control.Concurrent.STM.TVar
-import Control.Monad.STM
 
 import System.Log.Logger
 
@@ -46,14 +27,21 @@ new c = do
     (do
         let recv' = let loop = do
                           let nameF = nameM ++ ".recv"
+                          debugM nameF $ "recving..."
                           (bs, sa) <- (recvFrom (socket c) $ p_max c)
-                          if sa /= (server c) then loop
-                            else return $ BSL.fromStrict bs 
+                          if sa /= (server c) then do
+                            debugM nameF $ "recvd " ++ (show $ BS.length bs) ++ "B from " ++ (show sa)
+                            loop
+                            else do
+                            debugM nameF $ "recvd " ++ (show $ BS.length bs) ++ "B"
+                            return $ BSL.fromStrict bs 
                     in
                       loop
                       
         let send' = \bs -> do
+              let nameF = nameM ++ ".send"
               void $ sendTo (socket c) (BSL.toStrict bs) (server c)
+              debugM nameF $ "sent " ++ (show $ BSL.length bs) ++ "b"
 
         
         return $ T.Transport { T.send = send'

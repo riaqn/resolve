@@ -5,10 +5,6 @@ import Resolve.Exceptions
 import Control.Concurrent
 import Control.Exception
 
-import Data.Typeable
-
-import Data.Unique
-
 data Timeout = Timeout
   deriving (Show)
 

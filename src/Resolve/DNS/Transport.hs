@@ -1,21 +1,14 @@
 module Resolve.DNS.Transport where
 
 import qualified Resolve.Types as T
-import Resolve.DNS.Types
 import Resolve.DNS.Utils
 import Resolve.DNS.Exceptions
 import Resolve.DNS.Transport.Types
 
-import qualified Resolve.DNS.Encode as E
-import qualified Resolve.DNS.Decode as D
-
 import Data.Word
 import Data.Hashable
-import Data.Either
-import Data.Maybe
 
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
 import Control.Monad.STM
@@ -24,14 +17,10 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.Reader
 import Control.Concurrent.STM.TVar
 import Control.Concurrent.STM.TMVar
 
 import Data.Typeable
-
-import System.Log.Logger
-
 
 import qualified STMContainers.Map as M
 
@@ -58,9 +47,8 @@ new t = do
     (do
         tid <- forkFinally
           (forever $ runExceptT $ do  -- EitherT String IO ()
-              let nameF = nameM ++ ".recv"
               bs <- lift $ recv $ t
-              let (bs_id, bs_res) = BSL.splitAt 2 bs
+              let (bs_id, _) = BSL.splitAt 2 bs
               let ident = toWord16 $ BSL.toStrict bs_id
               r <- lift $ atomically $ lookupAndDelete b ident
               case r of
@@ -77,7 +65,6 @@ new t = do
     )
     (\r -> T.delete r)
     (\r -> return r)
-    
 
 resolve :: Record -> T.Resolve ByteString ByteString
 resolve r a = do 
@@ -88,7 +75,7 @@ resolve r a = do
     (\ident_ -> atomically $ lookupAndDelete (book r) ident_)
     (\ident_ -> do 
         let a_ = BSL.append (BSL.fromStrict $ fromWord16 ident_) a_res
-        forkIO $ (send $ transport $ r) a_
+        void $ forkIO $ (send $ transport $ r) a_
         b <- atomically $ do
           a <- readTVar $ dead r
           if a then tryTakeTMVar mvar
@@ -98,7 +85,7 @@ resolve r a = do
           Nothing -> throwIO Dead
           -- MASQUERADE
           Just b -> do
-            let (b_id, b_res) = BSL.splitAt 2 b
+            let (_, b_res) = BSL.splitAt 2 b
             return $ BSL.append a_id b_res
     )
 

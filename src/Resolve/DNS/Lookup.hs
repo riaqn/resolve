@@ -15,7 +15,6 @@ import Control.Monad
 import Control.Exception
 import Control.Concurrent.STM.TVar
 import Data.Typeable
-import Data.List
 import Data.Maybe
 import Data.Word
 import Data.ByteString.Lazy (ByteString)
@@ -52,10 +51,6 @@ data Lookup = Lookup { config :: Config
 new :: Config -> IO (R.Resolver Query Response)
 new c = do
   p <- newTVarIO 512
-  let l = Lookup { config = c
-                 , p_that = p
-                 }
-          
   return $ R.Resolver { R.resolve = resolve $ Lookup { config = c
                                                      , p_that = p
                                                      }

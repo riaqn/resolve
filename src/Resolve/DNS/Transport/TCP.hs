@@ -1,17 +1,12 @@
 module Resolve.DNS.Transport.TCP where
 
-import Resolve.Types
-import Resolve.DNS.Types
 import Resolve.DNS.Transport.Exceptions
 import Resolve.DNS.Utils
 import Resolve.DNS.Encode as E
-import Resolve.DNS.Decode as D
 import qualified Resolve.DNS.Transport.Types as T
 
 import Data.Typeable
 import Data.ByteString.Builder
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
 
@@ -73,9 +68,8 @@ new c = do
   
   bracketOnError
     (do
-        ti <- forkIOWithUnmask $ \unmask -> unmask $ finally
+        ti <- forkFinally
           (forever $ runExceptT $ do -- EitherT String IO ()
-              let nameF = nameM ++ ".recv"
               let recvAll' n = if n == 0 then return mempty
                     else do  -- IO ()
                     bs <- recv (socket c) n
@@ -88,7 +82,7 @@ new c = do
               bs <- lift $ recvAll $ n'
               lift $ atomically $ putTMVar qi $ bs
           )
-          (do
+          (\_ -> do
               debugM nameM "recv died"
               atomically $ writeTVar si False)
           
@@ -96,12 +90,13 @@ new c = do
                            (putMVar l ())
                            (takeMVar l)
                            (do
+                               let nameF = nameM ++ ".send"
                                let sendAll bs = if BSL.null bs then
                                      return ()
                                      else do
                                      n <- catch (send (socket c) bs)
                                        (\e -> do
-                                           let x = e :: SomeException
+                                           debugM nameF $ show (e :: SomeException)
                                            throwIO Closed
                                        )
                                      sendAll (BSL.drop n bs)
@@ -109,8 +104,11 @@ new c = do
                                len <-  case safeFromIntegral (BSL.length bs) of
                                    Nothing -> throwIO QueryTooLong
                                    Just x -> return x
+                               debugM nameF $ "sending.."
                                sendAll $ toLazyByteString $ word16BE len
-                               sendAll $ bs)
+                               sendAll $ bs
+                               debugM nameF $ "sent"
+                           )
 
         
         return $ T.Transport { T.send = send'
@@ -131,3 +129,10 @@ new c = do
     (\t -> T.delete t)
     (\t  -> return t
     )
+
+newClosed :: IO T.Transport
+newClosed = do
+  return $ T.Transport { T.send = \_ -> throwIO Closed
+                       , T.recv = throwIO Closed
+                       , T.delete = return ()
+                       }

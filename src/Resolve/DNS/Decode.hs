@@ -4,18 +4,15 @@ import Prelude hiding (take)
 import Resolve.DNS.Types hiding (name, header, question, qname, qclass, qtype)
 import qualified Resolve.DNS.Types as T
 import qualified Resolve.DNS.Exceptions as E
-import qualified  Resolve.DNS.EDNS.Types as ET
 import qualified Resolve.DNS.EDNS.Decode as ED
 
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import Data.Attoparsec.ByteString  (Parser, parse) 
 import Data.Attoparsec.Binary 
 import Data.Attoparsec.ByteString
 import Data.Word
 import Data.Bits
-import Data.Tuple
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
 import Control.Monad

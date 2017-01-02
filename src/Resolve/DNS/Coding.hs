@@ -29,6 +29,6 @@ encode r bs_a = do
 
   b <- r a 
   
-  case E.encode E.message a of
+  case E.encode E.message b of
     Left e -> throwIO e
     Right bs -> return bs

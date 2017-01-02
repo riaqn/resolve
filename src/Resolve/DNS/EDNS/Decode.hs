@@ -5,9 +5,6 @@ import Prelude hiding (take)
 import qualified Resolve.DNS.EDNS.Types as T
 import qualified Resolve.DNS.EDNS.Exceptions as E
 import Resolve.DNS.Types 
-import qualified Resolve.DNS.Encode as DNSE
-import qualified Resolve.DNS.EDNS.Exceptions
-import Control.Monad.Trans.Except
 import Control.Exception
 import Data.Typeable
 
@@ -16,7 +13,6 @@ import Data.Attoparsec.Binary
 import Data.Word
 import Data.Bits
 import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
 
 data Error = NameNotRoot
            | OptionParseError String

@@ -3,15 +3,9 @@ module Resolve.DNS.Types where
 import Data.Word
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import Data.Tuple (swap)
-import Data.Maybe
-import Data.Bits
 import Data.BitVector
 import Data.List
-import Data.Typeable
 
-
-import qualified Resolve.Types as R
 import Resolve.DNS.EDNS.Types
 
 
@@ -21,42 +15,6 @@ newtype NAME = NAME {unname :: [LABEL]} deriving (Eq, Ord)
 rootName :: NAME
 rootName = NAME [BS.empty]
 
-qclass_word = map (\(a, b) -> (CLASS a, b)) class_word
-              ++ [(ANY, 5)]
-              :: [(QCLASS, Word16)]
-
-class_word = [ (IN, 1)
-             , (CH, 3)
-             , (HS, 4)
-             ] :: [(CLASS, Word16)]
-
-qtype_word = [ (Q_A, 1 :: Word16)
-             , (Q_NS, 2)
-             , (Q_CNAME, 5)
-             , (Q_SOA, 6)
-             , (Q_PTR, 12)
-             , (Q_MX, 15)
-             , (Q_TXT, 16)
-             ]
-
-opcode_word = map (\(a, b) -> (a, bitVec 4 b))
-  [ (STD, bitVec 4 0)
-  , (INV, bitVec 4 1)
-  , (SSR, bitVec 4 2)
-  ]
-
-rcode_word = map (\(a, b) -> (a, bitVec 4 b))
-  [ (NoErr, 0)
-  , (FormatErr, 1)
-  , (ServFail, 2)
-  , (NameErr, 3)
-  , (NotImpl, 4)
-  , (Refused, 5)
-  ]
-
-qr_word = [ (Query, False)
-          , (Response, True)]
-             
 data Message = Message {
     header     :: Header
   , question   :: [Question]
@@ -87,7 +45,8 @@ data OPCODE
   = STD
   | INV
   | SSR
-  deriving (Eq, Show, Bounded)
+  | OTH Word8  -- should be Word4
+  deriving (Eq, Show)
 
 data RCODE
   = NoErr
@@ -117,7 +76,6 @@ data QTYPE = Q_A
            | Q_MX
            | Q_TXT
            | Q_AXFR
-           | Q_ALL
            | Q_OTHER Word16
            deriving (Eq, Show, Ord)
 
@@ -169,16 +127,18 @@ fromQTYPE t = case t of
   Q_PTR -> 12
   Q_MX -> 15
   Q_TXT -> 16
+  Q_AXFR -> 252
   Q_OTHER i -> i
 
 fromOPCODE :: OPCODE -> BitVector  
 fromOPCODE c = bitVec 4 $ case c of
-  STD -> 0
+  STD -> 0 :: Word8
   INV -> 1
   SSR -> 2
+  OTH i -> i
   
 fromRCODE :: RCODE -> BitVector  
-fromRCODE c = bitVec 4 $ case c of
+fromRCODE c = bitVec (4 :: Int) $ case c of
   NoErr -> 0
   FormatErr -> 1
   ServFail -> 2
@@ -221,9 +181,10 @@ toOPCODE :: BitVector -> OPCODE
 toOPCODE c = case c of
   0 -> STD 
   1 -> INV 
-  2 -> SSR 
+  2 -> SSR
+  i -> OTH $ fromIntegral i
   
-toRCODE :: BitVector   -> RCODE 
+toRCODE :: BitVector -> RCODE 
 toRCODE c = case c of
   0 ->  NoErr
   1 ->  FormatErr

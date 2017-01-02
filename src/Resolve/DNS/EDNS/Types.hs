@@ -2,8 +2,6 @@ module Resolve.DNS.EDNS.Types where
 
 import Data.Word
 import Data.ByteString
-import Control.Exception
-import Data.Typeable
 
 type Option = (Word16, ByteString)
 
