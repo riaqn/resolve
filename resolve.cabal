@@ -58,7 +58,7 @@ library
                      , FunctionalDependencies
                      , FlexibleInstances
                      , GADTs
-  ghc-options:         -Wall -Werror -Wno-missing-signatures -Wno-name-shadowing -Wno-type-defaults
+  ghc-options:         -Wall -Werror -Wno-missing-signatures -Wno-name-shadowing -Wno-type-defaults -O2
                      
 source-repository head
   type:     git
