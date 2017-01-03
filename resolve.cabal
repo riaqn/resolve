@@ -24,7 +24,8 @@ library
                      , Resolve.DNS.Transport.UDP
                      , Resolve.DNS.Transport.TCP
                      , Resolve.DNS.Transport.LiveTCP
-                     , Resolve.DNS.Transport
+                     , Resolve.DNS.Transport.Multiplex
+                     , Resolve.DNS.Transport.Dumb
                      , Resolve.DNS.Lookup
                      , Resolve.DNS.Coding
                      , Resolve.DNS.Decode
