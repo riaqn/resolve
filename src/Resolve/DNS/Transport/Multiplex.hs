@@ -78,9 +78,11 @@ new m = do
   bracketOnError
     (do
         let allocate = do
-              x <- atomically $ do
+              i <- atomically $ do
                 i <- readTVar $ ident m
                 writeTVar (ident m) (i + 1)
+                return i
+              x <- atomically $ do 
                 x <- M.lookup i $ book m
                 case x of
                   Nothing -> do
