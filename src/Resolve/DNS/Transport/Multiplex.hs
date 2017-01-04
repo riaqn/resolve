@@ -18,6 +18,7 @@ import Control.Monad.Trans.Except
 import Control.Concurrent.STM.TVar
 import Control.Concurrent.STM.TMVar
 
+import System.Log.Logger
 
 import Data.Typeable
 
@@ -72,6 +73,7 @@ multiplex t = do
 
 new :: Multiplex -> IO T.Transport
 new m = do
+  let nameF = nameM ++ ".new"
   r <- newEmptyTMVarIO
   bracketOnError
     (do
@@ -83,11 +85,15 @@ new m = do
                 case x of
                   Nothing -> do
                     M.insert r i (book m)
-                    return $ Just i
-                  Just _ -> return Nothing
+                    return $ Right i
+                  Just _ -> return $ Left i
               case x of
-                Nothing -> allocate
-                Just i -> return i
+                Left i -> do
+                  debugM nameF $ (show i) ++ " occupied"
+                  allocate
+                Right i -> do
+                  debugM nameF $ (show i) ++ " allocated"
+                  return i
 
         ident <- allocate
         let bs_ident = fromWord16 ident
