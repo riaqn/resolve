@@ -114,7 +114,7 @@ rr = do
         (6, _) -> RR_COM c <$> (SOA <$> name <*> name <*> lift anyWord32be
                     <*> lift anyWord32be <*> lift anyWord32be <*> lift anyWord32be <*> lift anyWord32be)
         (16, _) -> RR_COM c <$> TXT <$> many1 charString
-        (1, IN) -> RR_A <$> (lift $ do
+        (1, IN) -> RR_A <$> IPv4 <$> (lift $ do
                                 ip <- anyWord32be
                                 flag <- atEnd
                                 when (not flag) $ error "IPv4 is not 4B?"

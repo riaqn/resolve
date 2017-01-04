@@ -12,6 +12,13 @@ import Resolve.DNS.EDNS.Types
 type LABEL = ByteString
 newtype NAME = NAME {unname :: [LABEL]} deriving (Eq, Ord)
 
+newtype IPv4 = IPv4 {unIPv4 :: Word32}
+  deriving (Eq, Ord)
+
+instance Show IPv4 where
+  show (IPv4 w) = intercalate "." $ map (\b -> show $ (fromIntegral $ w `shiftR` (b * 8) :: Word8)) [3,2,1,0]
+  
+
 rootName :: NAME
 rootName = NAME [BS.empty]
 
@@ -99,7 +106,7 @@ data RDATA_COM = CNAME NAME
                deriving (Eq, Ord, Show)
 
 data RDATA = RR_COM CLASS RDATA_COM
-           | RR_A Word32
+           | RR_A IPv4
            | RR_OTHER CLASS Word16 ByteString
     deriving (Eq, Ord, Show)
 
