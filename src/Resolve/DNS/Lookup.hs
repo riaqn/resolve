@@ -28,7 +28,7 @@ import qualified Data.ByteString.Lazy as BSL
 
 import System.Log.Logger
 
-data Query = Query { qquestion :: [Question]
+data Query = Query { qquestion :: Question
                    , qopt :: [Option]
                    }
              
@@ -93,7 +93,7 @@ resolve l q = do
                                      , zero = 0
                                      , rcode = NoErr
                                      }
-                   , question = (qquestion q)
+                   , question = [qquestion q]
                    , answer = []
                    , authority = []
                    , additional = []
